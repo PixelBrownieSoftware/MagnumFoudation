@@ -2284,7 +2284,6 @@ namespace MagnumFoudation
                 if (characterdat.charType == "")
                     return null;
                 trig = SpawnObject<T>(characterdat.charType, characterPos, Quaternion.identity);
-
             }
             trig.control = true;
             trig.SetSpawnPoint(characterPos);
