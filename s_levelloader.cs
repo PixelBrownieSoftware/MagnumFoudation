@@ -374,6 +374,7 @@ namespace MagnumFoudation
         public static bool isPause = false;
 
         public bool saveOnQuit;
+        public bool isMainGame;
 
         public bool isFixedSaveAreaInput = false;
         static bool isFixedSaveArea;
@@ -430,7 +431,7 @@ namespace MagnumFoudation
             s_globals.arrowKeyConfig.Add("select", KeyCode.E);
         }
 
-        void Start()
+        public void Start()
         {
             if (SceneManager.GetActiveScene().name == "Main Game")
             {
@@ -481,7 +482,7 @@ namespace MagnumFoudation
             fs.Close();
         }
 
-        private void Update()
+        public void Update()
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -499,7 +500,7 @@ namespace MagnumFoudation
 
         public void OnGUI()
         {
-            if (isPause && SceneManager.GetActiveScene().name == "Main Game" || SceneManager.GetActiveScene().name == "MainGame")
+            if (isPause && isMainGame)
             {
                 if (saveOnQuit)
                 {
@@ -689,11 +690,28 @@ namespace MagnumFoudation
                             else
                                 currentScript = s_levelloader.LevEd.mapDat.Map_Script;
 
+                            scroll = GUI.BeginScrollView(new Rect(0, 150, 200, 400), scroll, new Rect(0, 150, 200, 300));
+
+                            //To fix the bug when the first event never appears
+                            ev_details detBeg = currentScript[0];
+                            if (detBeg.eventType == -1)
+                            {
+                                if (y == 10)
+                                {
+                                    y = 0;
+                                    x++;
+                                }
+                                if (GUI.Button(new Rect(160 * x, 50 * (y + 2), 160, 50), detBeg.string0))
+                                {
+                                    s_levelloader.LevEd.GetComponent<s_triggerhandler>().JumpToEvent(0, CALL_STATIC_SCRIPT);
+                                }
+                                ind++;
+                                y++;
+                            }
+
                             for (int i = 0; i < currentScript.Count; i++)
                             {
                                 ev_details det = currentScript[i];
-
-                                scroll = GUI.BeginScrollView(new Rect(0, 150, 200, 400), scroll, new Rect(0, 150, 200, 300));
                                 if (det.eventType == -1)
                                 {
                                     if (y == 10)
@@ -708,8 +726,8 @@ namespace MagnumFoudation
                                     ind++;
                                     y++;
                                 }
-                                GUI.EndScrollView();
                             }
+                            GUI.EndScrollView();
                             break;
                     }
 
@@ -868,23 +886,23 @@ namespace MagnumFoudation
                 case 0:
 
                     float timer = 1.02f;
-                    o_character charaMove = GameObject.Find(current_ev.string0).GetComponent<o_character>();
+                    o_character charaMove = null;
+
+                    if (current_ev.string0 != "o_player")
+                        charaMove = GameObject.Find(current_ev.string0).GetComponent<o_character>();
+                    else
+                        charaMove = player;
 
                     Vector2 newpos = charaMove.transform.position;
                     s_map.s_tileobj to = s_levelloader.LevEd.mapDat.tilesdata.Find(
                         x => x.TYPENAME == "teleport_object" && 
                         x.name == current_ev.string1);
 
-                    if (current_ev.string0 == "o_player")
-                        charaMove = player;
-                    if (GameObject.Find(current_ev.string0).GetComponent<o_character>() == selobj)
-                    {
-                        newpos = new Vector2(to.pos_x, to.pos_y);
-                    }
+                    newpos = new Vector2(to.pos_x, to.pos_y);
 
                     if (current_ev.boolean)
                     {
-                        charaMove.transform.position = new Vector3(current_ev.float0, current_ev.float1, 0);
+                        charaMove.transform.position = new Vector3(newpos.x, newpos.y, 0);
                         break;
                     }
 
@@ -926,7 +944,7 @@ namespace MagnumFoudation
                                 isSkipped = true;
                             */
                             Dialogue.text = current_ev.string0;
-                            break;
+                            continue;
                         }
                         textNum++;
                         yield return new WaitForSeconds(Time.deltaTime * 2);
@@ -1881,6 +1899,7 @@ namespace MagnumFoudation
             s_map mapfil = new s_map();
             if (mapscript != null)
                 mapfil.mapscript = mapscript.name;
+
             triggerHand = GetComponent<s_triggerhandler>();
             GameObject mapn = SceneLevelObject;
             o_character[] objectsInMap = null;
@@ -1914,12 +1933,6 @@ namespace MagnumFoudation
 
             return mapfil;
         }
-        /*
-        dat = levedatabase.GetComponent<s_leveldatabase>();
-        dat.maps.Add(mapfil);
-
-        dat = null;
-        */
 
         public s_map JsonToObj(string directory)
         {
@@ -1929,22 +1942,22 @@ namespace MagnumFoudation
         
         public virtual List<s_save_item> GetItems(o_itemObj[] itemsInMap)
         {
-            throw new NotImplementedException();
+            return new List<s_save_item>();
         }
 
         public virtual List<s_map.s_tileobj> GetTiles(s_object[] tiles)
         {
-            throw new NotImplementedException();
+            return new List<s_map.s_tileobj>();
         }
 
         public virtual List<s_map.s_chara> GetEntities(o_character[] characters)
         {
-            throw new NotImplementedException();
+            return new List<s_map.s_chara>();
         }
 
         public virtual List<s_map.s_trig> GetTriggers(s_object[] triggers)
         {
-            throw new NotImplementedException();
+            return new List<s_map.s_trig>();
         }
 
         public virtual GameObject SetTrigger(s_map.s_trig trigger)
@@ -1957,9 +1970,13 @@ namespace MagnumFoudation
 
         public void LoadMap(s_map mapdat)
         {
-            // print("Loading map...");
             allcharacters.Clear();
-            allcharacters.Add(player);
+
+            if (player != null)
+                allcharacters.Add(player);
+            else
+                print("Please assign or add a player.");
+
             mapscript = null;
             List<Tuple<GameObject, List<s_map.s_customType>>> depndencyReq = new List<Tuple<GameObject, List<s_map.s_customType>>>();
             mapDat = mapdat;
@@ -1967,16 +1984,14 @@ namespace MagnumFoudation
             if (mapdat == null)
                 return;
             nodegraph = GetComponent<s_nodegraph>();
-            //print("Getting nodegraph..." + nodegraph);
-            triggerHand = GetComponent<s_triggerhandler>();
-            //print("Getting triggerhandler..." + triggerHand);
 
+            triggerHand = GetComponent<s_triggerhandler>();
+            
             mapsizeToKeep = mapdat.mapsize;
-            //print("Getting map size..." + new Vector2(mapsizeToKeep.x , mapsizeToKeep.y));
+
             nodegraph.size = new Vector2Int((int)mapsizeToKeep.x, (int)mapsizeToKeep.y);
 
-            //print("Loading entities...");
-#region SPAWN_ENTITIES
+            #region SPAWN_ENTITIES
             /*
             for (int i = 0; i < mapdat.objectdata.Count; i++)
             {
@@ -2015,11 +2030,15 @@ namespace MagnumFoudation
                 allcharacters.Add(trig);
             }
             */
+            for (int i = 0; i < mapdat.objectdata.Count; i++)
+            {
+                s_map.s_chara characterdat = mapdat.objectdata[i];
+                SetEntity<o_character>(characterdat);
+            }
             SetEntities(mapdat.objectdata);
 #endregion
-
-            //print("Loading triggers...");
-#region SPAWN_TRIGGERS
+            
+            #region SPAWN_TRIGGERS
             for (int i = 0; i <
                 mapdat.triggerdata.Count;
                 i++)
@@ -2046,11 +2065,11 @@ namespace MagnumFoudation
             }
             player.AddFactions(allcharacters);
 #endregion
+
             if (triggerHand != null)
                 triggerHand.GetMapEvents(mapdat.map_script_labels, mapdat.Map_Script);
-
-            //print("Loading tiles...");
-#region SPAWN_GRAPHIC_TILES
+            
+            #region SPAWN_GRAPHIC_TILES
             /*
             foreach (s_map.s_block b in mapdat.graphicTiles)
             {
@@ -2077,9 +2096,8 @@ namespace MagnumFoudation
             }
             */
 #endregion
-
-            //print("Loading objects...");
-#region SPAWN_TILES
+            
+            #region SPAWN_TILES
             /*
             for (int i = 0; i < mapdat.tilesdata.Count; i++)
             {
@@ -2159,38 +2177,123 @@ namespace MagnumFoudation
             }
             */
 #endregion
-            //print("Loading collisions...");
+
             SetTileMap(mapdat);
 
-            //print("Loading items...");
-#region SPAWN_ITEMS
+            #region SPAWN_ITEMS
             for (int i = 0; i < mapdat.itemdat.Count; i++)
             {
                 s_save_item item = mapdat.itemdat[i];
                 SetItem(item);
             }
 #endregion
+
             foreach (o_character c in allcharacters)
             {
                 if (c != null)
                     c.AddFactions(allcharacters);
             }
-#region ADD IN OBJECT DEPENDENCIES
-            SetTriggerDependency(ref depndencyReq);
-#endregion
 
-            nodegraph.CreateNodeArray(mapdat.tilesdata.ToArray());
+            #region ADD IN OBJECT DEPENDENCIES
+            SetTriggerDependency(ref depndencyReq);
+            #endregion
+
+            if (nodegraph != null)
+                nodegraph.CreateNodeArray(mapdat.tilesdata.ToArray());
+            else
+                print("Please include the nodegraph.");
+
             if (mapdat.OnMapScriptCall)
                 triggerHand.JumpToEvent(mapdat.onMapScriptCallLabel, false);
         }
 
         public virtual void SetTriggerDependency(ref List<Tuple<GameObject, List<s_map.s_customType>>> triggers)
         {
-
         }
+
+        /// <summary>
+        /// Depricated function, use "SetEntity instead"
+        /// </summary>
+        /// <param name="characters"></param>
         public virtual void SetEntities(List<s_map.s_chara> characters)
         {
+            for (int i = 0; i < characters.Count; i++)
+            {
+                s_map.s_chara characterdat = characters[i];
+                Vector2 characterPos = new Vector2(characterdat.pos_x, characterdat.pos_y);
 
+                o_character trig = null;
+                if (InEditor)
+                {
+                    if (characterdat.charType == "")
+                        continue;
+                    if (FindOBJ(characterdat.charType) == null)
+                    {
+                        print("Couldn't find object '" + characterdat.charType + "' in the pool, please add it to the pooler.");
+                        continue;
+                    }
+                    trig = Instantiate<o_character>(FindOBJ<o_character>(characterdat.charType), characterPos, Quaternion.identity);
+                }
+                else
+                {
+                    //print(characters[i].charType);
+                    if (characterdat.charType == "")
+                        continue;
+                    //TODO find character equal to the id and spawn that
+                    if (characters[i].possesed)
+                        continue;
+                    trig = SpawnObject<o_character>(characters[i].charType, characterPos, Quaternion.identity);
+
+                }
+                trig.control = true;
+                trig.SetSpawnPoint(characterPos);
+                trig.name = characterdat.charname;
+                trig.transform.position = new Vector3(characterdat.pos_x, characterdat.pos_y, 1);
+                trig.transform.SetParent(entitiesObj.transform);
+
+                allcharacters.Add(trig);
+            }
+        }
+
+        /// <summary>
+        /// This is used to spawn the entities, you can overide this function if you want to set custom parameters.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="character"></param>
+        /// <returns></returns>
+        public virtual T SetEntity<T>(s_map.s_chara character) where T : o_character
+        {
+            s_map.s_chara characterdat = character;
+            Vector2 characterPos = new Vector2(characterdat.pos_x, characterdat.pos_y);
+
+            T trig = null;
+            if (InEditor)
+            {
+                if (characterdat.charType == "")
+                    return null;
+                if (FindOBJ(characterdat.charType) == null)
+                {
+                    print("Couldn't find object '" + characterdat.charType + "' in the pool, please add it to the pooler.");
+                    return null;
+                }
+                trig = Instantiate<T>(FindOBJ<T>(characterdat.charType), characterPos, Quaternion.identity);
+            }
+            else
+            {
+                //print(characters[i].charType);
+                if (characterdat.charType == "")
+                    return null;
+                trig = SpawnObject<T>(characterdat.charType, characterPos, Quaternion.identity);
+
+            }
+            trig.control = true;
+            trig.SetSpawnPoint(characterPos);
+            trig.name = characterdat.charname;
+            trig.transform.position = new Vector3(characterdat.pos_x, characterdat.pos_y, 0);
+            trig.transform.SetParent(entitiesObj.transform);
+
+            allcharacters.Add(trig);
+            return trig;
         }
 
         public virtual void SetTileMap(s_map mapdat)
@@ -2204,6 +2307,8 @@ namespace MagnumFoudation
             foreach (s_map.s_block b in tile)
             {
                 Tile til = tilesNew.Find(ti => ti.name == b.sprite);
+                if (til == null)
+                    continue;
                 Matrix4x4 matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.Euler(b.rotation.x, b.rotation.y, b.rotation.z), Vector3.one);
 
                 Vector3Int v = new Vector3Int((int)b.position.x / (int)tilesize, (int)b.position.y / (int)tilesize, 0);
@@ -2214,6 +2319,8 @@ namespace MagnumFoudation
             foreach (s_map.s_block b in tileMid)
             {
                 Tile til = tilesNew.Find(ti => ti.name == b.sprite);
+                if (til == null)
+                    continue;
                 Matrix4x4 matrix = Matrix4x4.TRS(new Vector3(b.position.x, b.position.y), Quaternion.Euler(b.rotation.x, b.rotation.y, b.rotation.z), Vector3.one);
 
                 Vector3Int v = new Vector3Int((int)b.position.x / (int)tilesize, (int)b.position.y / (int)tilesize, 0);
@@ -2224,6 +2331,8 @@ namespace MagnumFoudation
             foreach (s_map.s_block b in tileTop)
             {
                 Tile til = tilesNew.Find(ti => ti.name == b.sprite);
+                if (til == null)
+                    continue;
                 Matrix4x4 matrix = Matrix4x4.TRS(new Vector3(b.position.x, b.position.y), Quaternion.Euler(b.rotation.x, b.rotation.y, b.rotation.z), Vector3.one);
 
                 Vector3Int v = new Vector3Int((int)b.position.x / (int)tilesize, (int)b.position.y / (int)tilesize, 0);
@@ -2258,7 +2367,7 @@ namespace MagnumFoudation
                     Tile til = tm.GetTile<Tile>(new Vector3Int(x, y, 0));
                     if (til != null)
                     {
-                        s_map.s_block tilo = new s_map.s_block(til.sprite.name,
+                        s_map.s_block tilo = new s_map.s_block(til.name,
                                    new Vector2(x * tilesize, y * tilesize));
                         Vector3 m = tm.GetTransformMatrix(new Vector3Int(x, y, 0)).rotation.eulerAngles;
                         tilo.rotation = new s_save_vector(m.x, m.y, m.z);
@@ -2268,7 +2377,7 @@ namespace MagnumFoudation
                     Tile tilmid = tm2.GetTile<Tile>(new Vector3Int(x, y, 0));
                     if (tilmid != null)
                     {
-                        s_map.s_block tilo = new s_map.s_block(tilmid.sprite.name,
+                        s_map.s_block tilo = new s_map.s_block(tilmid.name,
                                    new Vector2(x * tilesize, y * tilesize));
                         Vector3 m = tm2.GetTransformMatrix(new Vector3Int(x,y,0)).rotation.eulerAngles;
                         tilo.rotation = new s_save_vector(m.x, m.y, m.z);
@@ -2279,7 +2388,7 @@ namespace MagnumFoudation
                     Tile tiltop = tm3.GetTile<Tile>(new Vector3Int(x, y, 0));
                     if (tiltop != null)
                     {
-                        s_map.s_block tilo = new s_map.s_block(tiltop.sprite.name,
+                        s_map.s_block tilo = new s_map.s_block(tiltop.name,
                                    new Vector2(x * tilesize, y * tilesize));
                         Vector3 m = tm3.GetTransformMatrix(new Vector3Int(x, y, 0)).rotation.eulerAngles;
                         tilo.rotation = new s_save_vector(m.x, m.y, m.z);
@@ -2413,3 +2522,9 @@ namespace MagnumFoudation
     }
 
 }
+/*
+dat = levedatabase.GetComponent<s_leveldatabase>();
+dat.maps.Add(mapfil);
+
+dat = null;
+*/

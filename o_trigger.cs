@@ -138,7 +138,7 @@ namespace MagnumFoudation
                 {
                     case TRIGGER_TYPE.CONTACT:
 
-                        Collider2D c = IfTouchingGetCol<o_character>(collision);
+                        o_character c = IfTouchingGetCol<o_character>(collision);
                         if (c != null)
                         {
                             selobj = c.gameObject.GetComponent<s_object>();

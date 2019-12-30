@@ -109,7 +109,7 @@ namespace MagnumFoudation
 
         new void Update()
         {
-            Collider2D col = IfTouchingGetCol<o_character>(collision);
+            o_character col = IfTouchingGetCol<o_character>(collision);
 
             if (col != null)
             {
@@ -367,7 +367,7 @@ namespace MagnumFoudation
 
         public Collider2D GetAllCharacters(BoxCollider2D collisn) { return Physics2D.OverlapBox(transform.position, collisn.size, 0); }
 
-        protected Collider2D IfTouchingGetCol<T>(BoxCollider2D collisn) where T: s_object
+        protected T IfTouchingGetCol<T>(BoxCollider2D collisn) where T: s_object
         {
             if (collisn == null)
                 return null;
@@ -385,7 +385,7 @@ namespace MagnumFoudation
                 T obj = co.gameObject.GetComponent<T>();
                 if (obj == null)
                     continue;
-                return co;
+                return obj;
             }
             return null;
         }
@@ -507,9 +507,9 @@ namespace MagnumFoudation
         public Vector2 direction { get; set; }
         float timer = 0;
 
-        public void SetTimer()
+        public void SetTimer(float tmr)
         {
-            timer = 2.5f;
+            timer = tmr;
         }
 
         new void Start()
@@ -524,7 +524,7 @@ namespace MagnumFoudation
                 transform.Translate(direction * terminalSpeedOrigin * 60 * Time.deltaTime);
 
                 //For now we'll just hard-code it to be a certain NPC
-                Collider2D c = IfTouchingGetCol<o_character>(collision);
+                o_character c = IfTouchingGetCol<o_character>(collision);
                 if (c != null)
                 {
                     if (c != parent)
@@ -785,13 +785,22 @@ namespace MagnumFoudation
         {
             if (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0)
             {
-                direction = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+                direction = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).normalized;
                 return true;
             }
             //direction = new Vector2(0, 0);
             return false;
         }
-        
+        public Vector2 ArrowKeyControlGetVec()
+        {
+            if (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0)
+            {
+                return new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            }
+            //direction = new Vector2(0, 0);
+            return Vector2.zero;
+        }
+
         public void Dash(float delay)
         {
             if (dashdelay > 0)

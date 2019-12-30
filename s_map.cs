@@ -444,6 +444,30 @@ namespace MagnumFoudation
                     CustomTypes.Add(new s_customType(tagname, tagValue));
                 }
             }
+            public List<int> GetCustomTags(string tagname)
+            {
+                List<s_customType> ty = CustomTypes.FindAll(x => x.name == tagname);
+                List<int> ints = new List<int>();
+
+                foreach (s_customType i in ty)
+                {
+                    ints.Add(i.type);
+                }
+                return ints;
+            }
+            /// <summary>
+            /// Gets the first string custom type
+            /// </summary>
+            /// <param name="tagname"></param>
+            /// <returns></returns>
+            public string GetCustomStringTag(string tagname)
+            {
+                s_customType ty = CustomTypes.Find(x => x.name == tagname);
+                List<int> ints = new List<int>();
+
+                return ty.type3;
+            }
+
             public s_trig(Vector2 trigSize)
             {
                 this.trigSize = new s_save_vector(trigSize.x, trigSize.y);
@@ -542,6 +566,29 @@ namespace MagnumFoudation
             public bool enabled;    //Checks if the character's control is enabled
             public int pos_x, pos_y;
 
+            public List<int> GetCustomTags(string tagname)
+            {
+                List<s_customType> ty = CustomTypes.FindAll(x => x.name == tagname);
+                List<int> ints = new List<int>();
+
+                foreach (s_customType i in ty)
+                {
+                    ints.Add(i.type);
+                }
+                return ints;
+            }
+            /// <summary>
+            /// Gets the first string custom type
+            /// </summary>
+            /// <param name="tagname"></param>
+            /// <returns></returns>
+            public string GetCustomStringTag(string tagname)
+            {
+                s_customType ty = CustomTypes.Find(x => x.name == tagname);
+                List<int> ints = new List<int>();
+
+                return ty.type3;
+            }
             public void AddCustomTag(string tagname, string tagValue)
             {
                 if (CustomTypes != null)
