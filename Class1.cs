@@ -505,39 +505,43 @@ namespace MagnumFoudation
         public int attack_pow;
         public bool isbullet = true;
         public Vector2 direction { get; set; }
-        float timer = 0;
+        protected float timer = 0;
 
         public void SetTimer(float tmr)
         {
             timer = tmr;
         }
 
-        new void Start()
+        new protected void Start()
         {
             base.Start();
         }
-        
-        new void Update()
+
+        public virtual void CheckCharacterIntersect<T>() where T : o_character
+        {
+            T c = IfTouchingGetCol<T>(collision);
+            if (c != null)
+            {
+                if (c != parent)
+                {
+                    if (parent.GetTargets().Find(x => x == c) != null)
+                    {
+                        if (c != parent)
+                        {
+                            OnImpact(c);
+                        }
+                    }
+                }
+            }
+        }
+
+        new protected void Update()
         {
             if (isbullet)
             {
                 transform.Translate(direction * terminalSpeedOrigin * 60 * Time.deltaTime);
 
                 //For now we'll just hard-code it to be a certain NPC
-                o_character c = IfTouchingGetCol<o_character>(collision);
-                if (c != null)
-                {
-                    if (c != parent)
-                    {
-                        if (parent.GetTargets().Find(x => x == c.GetComponent<o_character>()) != null)
-                        {
-                            if (c.GetComponent<o_character>() != parent)
-                            {
-                                OnImpact(c.GetComponent<o_character>());
-                            }
-                        }
-                    }
-                }
                 /*
                 */
 
