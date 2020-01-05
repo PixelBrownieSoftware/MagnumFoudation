@@ -767,8 +767,21 @@ namespace MagnumFoudation
         }
     }
 
+    [System.Serializable]
+    public struct s_dialogue_choice
+    {
+        public s_dialogue_choice(string option, int flagTojump)
+        {
+            this.option = option;
+            this.flagTojump = flagTojump;
+        }
+
+        public string option;
+        public int flagTojump;
+    }
     public class s_triggerhandler : MonoBehaviour
     {
+        public List<s_dialogue_choice> dialogueChoices = new List<s_dialogue_choice>();
         public float travSpeed = 22.5f;
         public static s_triggerhandler trig;
         public bool doingEvents = false;
@@ -1279,6 +1292,65 @@ namespace MagnumFoudation
                             }
                         }
                     }
+                    break;
+                #endregion
+
+                #region ADD CHOICE
+                case 28:
+
+                    s_dialogue_choice dialo = new s_dialogue_choice(current_ev.string0, FindLabel(current_ev.string1));
+
+                    if (dialogueChoices != null)
+                        dialogueChoices.Add(dialo);
+                    else
+                    {
+                        dialogueChoices = new List<s_dialogue_choice>();
+                        dialogueChoices.Add(dialo);
+                    }
+                    break;
+                #endregion
+
+                #region CLEAR CHOICES
+                case 29:
+                    dialogueChoices.Clear();
+                    break;
+                #endregion
+
+                #region PRESENT CHOICES
+                case 30:
+
+                    int choice = 0, finalchoice = -1;
+                    print(choice);
+
+                    while (finalchoice == -1)
+                    {
+                        if (Input.GetKeyDown(KeyCode.UpArrow))
+                            choice--;
+
+                        if (Input.GetKeyDown(KeyCode.DownArrow))
+                            choice++;
+
+                        choice = Mathf.Clamp(choice, 0, dialogueChoices.Count - 1);
+
+                        if (Input.GetKeyDown(KeyCode.Z))
+                        {
+                            print("Chosen");
+                            finalchoice = choice;
+                        }
+                        Dialogue.text = "Arrow keys to scroll, Z to select" + "\n";
+                        Dialogue.text += current_ev.string0 + "\n";
+                        for (int i = 0; i < dialogueChoices.Count - 1; i++)
+                        {
+                            if (choice == i)
+                                Dialogue.text += "-> ";
+
+                            Dialogue.text += dialogueChoices[i].option + "\n";
+                        }
+                        print(choice);
+                        yield return new WaitForSeconds(Time.deltaTime);
+                    }
+                    Dialogue.text = "";
+                    pointer = dialogueChoices[finalchoice].flagTojump - 1;
                     break;
                 #endregion
 
