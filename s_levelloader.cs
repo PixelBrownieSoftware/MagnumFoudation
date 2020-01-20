@@ -1961,7 +1961,7 @@ namespace MagnumFoudation
 
         public void SaveMap(string dir)
         {
-            string mapdat = JsonUtility.ToJson(GetMap());
+            string mapdat = JsonUtility.ToJson(GetMap(), true);
             print(mapdat);
 
             File.WriteAllText(dir, mapdat);
