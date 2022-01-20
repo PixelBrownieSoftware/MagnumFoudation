@@ -83,8 +83,8 @@ namespace MagnumFoudation
     public class o_trigger : s_object
     {
         public LayerMask layer;
-        [HideInInspector]
-        private gui_dialogue Dialogue;
+       // [HideInInspector]
+       // private gui_dialogue Dialogue;
         public enum TRIGGER_TYPE
         {
             CONTACT,
@@ -100,11 +100,10 @@ namespace MagnumFoudation
         [HideInInspector]
         public o_character charac;
         public int LabelToJumpTo;
+        public string stringLabelToJumpTo;
 
-        [HideInInspector]
-        bool doingEvents = false;
-        [HideInInspector]
-        Image fade;
+        //[HideInInspector]
+        //Image fade;
         public bool callstatic = false;
 
         public s_events Events;
@@ -116,16 +115,54 @@ namespace MagnumFoudation
         public int ev_num = 0;
         s_object selobj;
 
+        public bool destroyOnTouch = false;
+
+
         public void Awake()
         {
+            if (useCondition) {
+
+                bool cond = false;
+                int flagNum = s_globals.GetGlobalFlag(flagName);
+
+                switch (logicType) {
+                    case ev_details.LOGIC_TYPE.VAR_EQUAL:
+                        cond = (flagNum == conditionNum);
+                        break;
+
+                    case ev_details.LOGIC_TYPE.VAR_GREATER:
+                        cond = (flagNum > conditionNum);
+                        break;
+
+                    case ev_details.LOGIC_TYPE.VAR_LESS:
+                        cond = (flagNum < conditionNum);
+                        break;
+
+                    case ev_details.LOGIC_TYPE.VAR_NOT_EQUAL:
+                        cond = (flagNum != conditionNum);
+                        break;
+                }
+                if (cond)
+                {
+                    if (disspearOnConditionTrue)
+                        Destroy(gameObject);
+                }
+                if (!cond)
+                {
+                    if (!disspearOnConditionTrue)
+                        Destroy(gameObject);
+                }
+
+
+            }
         }
 
         public void Initialize()
         {
-            fade = GameObject.Find("GUIFADE").GetComponent<Image>();
+            //fade = GameObject.Find("GUIFADE").GetComponent<Image>();
             colider = GetComponent<BoxCollider2D>();
-            if (GameObject.Find("Dialogue"))
-                Dialogue = GameObject.Find("Dialogue").GetComponent<gui_dialogue>();
+            //if (GameObject.Find("Dialogue"))
+                //Dialogue = GameObject.Find("Dialogue").GetComponent<gui_dialogue>();
             rendererObj = GetComponent<SpriteRenderer>();
         }
 
@@ -142,40 +179,54 @@ namespace MagnumFoudation
                         if (c != null)
                         {
                             selobj = c.gameObject.GetComponent<s_object>();
-                            print(name + c.name);
+                            //print(name + c.name);
                             if (selobj)
                             {
                                 o_character posses = selobj.GetComponent<o_character>();
-                                print(name + c.name);
+                                //print(name + c.name);
                                 o_character ch = c.GetComponent<o_character>();
-                                if (ch || posses != null && !posses.AI)
+                                if (ch)
                                 {
-                                    print("Activating trigger");
-                                    s_triggerhandler.trig.selobj = selobj;
-                                    s_triggerhandler.trig.JumpToEvent(LabelToJumpTo, callstatic);
+                                    if (!ch.AI)
+                                    {
+                                        //print("Activating trigger");
+                                        s_triggerhandler.trig.selobj = selobj;
+                                        if(stringLabelToJumpTo != "")
+                                            s_triggerhandler.trig.JumpToEvent(stringLabelToJumpTo, callstatic);
+                                        else
+                                            s_triggerhandler.trig.JumpToEvent(LabelToJumpTo, callstatic);
+                                        if (destroyOnTouch)
+                                            Destroy(gameObject);
+                                    }
                                 }
                             }
                         }
                         break;
 
                     case TRIGGER_TYPE.CONTACT_INPUT:
-                        if (Input.GetKeyDown(s_globals.arrowKeyConfig["select"]))
+                        if (Input.GetKeyDown(s_globals.GetKeyPref("select")))
                         {
                             c = IfTouchingGetCol<o_character>(collision);
                             if (c != null)
                             {
                                 selobj = c.gameObject.GetComponent<s_object>();
-                                print(name + c.name);
+                                //print(name + c.name);
                                 if (selobj)
                                 {
                                     o_character posses = selobj.GetComponent<o_character>();
                                     o_character ch = posses.GetComponent<o_character>();
-                                    if (ch || posses != null && !posses.AI)
-                                    {
-                                        print("Activating trigger");
-                                        s_triggerhandler.trig.selobj = selobj;
-                                        s_triggerhandler.trig.JumpToEvent(LabelToJumpTo, callstatic);
-                                    }
+                                    if (ch)
+                                        if (!ch.AI)
+                                        {
+                                            //print("Activating trigger");
+                                            s_triggerhandler.trig.selobj = selobj;
+                                            if (stringLabelToJumpTo != "")
+                                                s_triggerhandler.trig.JumpToEvent(stringLabelToJumpTo, callstatic);
+                                            else
+                                                s_triggerhandler.trig.JumpToEvent(LabelToJumpTo, callstatic);
+                                            if (destroyOnTouch)
+                                                Destroy(gameObject);
+                                        }
                                 }
                             }
                         }

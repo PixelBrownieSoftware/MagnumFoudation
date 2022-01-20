@@ -11,7 +11,6 @@ namespace MagnumFoudation
     {
 
         public Vector2Int menuchoice;
-        int menuchoice_1D;
         int[,] cells;
         public Texture2D text;
         static List<string> texttoWrite = new List<string>();
@@ -26,9 +25,6 @@ namespace MagnumFoudation
         static float timer = 0;
 
         int cell_x, cell_y;
-        int inv_leng = 0;
-        bool menu = false;
-        bool x_limit;
         static bool stayOn;
         bool open_menu = false;
 
@@ -152,7 +148,6 @@ namespace MagnumFoudation
         public void CreateCells(int quantity, int lim, bool x_limit)
         {
             int q = Mathf.CeilToInt(quantity / lim);
-            this.x_limit = x_limit;
             /*
             if (this.x_limit)
             {
@@ -335,10 +330,6 @@ namespace MagnumFoudation
                     open_menu = false;
                 }
             }
-            if (Input.GetKeyDown(KeyCode.X))
-            {
-                menu = !menu;
-            }
             if (Input.GetKeyDown(KeyCode.C))
             {
                 cell_colours.Clear();
@@ -369,7 +360,6 @@ namespace MagnumFoudation
         public bool readtext { get; set; }
 
         public string[] disptxt;
-        bool istyping = true;
         public string textTarg;
         public GameObject fad;
 

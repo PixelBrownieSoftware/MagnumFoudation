@@ -1,8 +1,6 @@
 ﻿
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MagnumFoudation
@@ -87,7 +85,7 @@ namespace MagnumFoudation
     public class o_itemObj : s_object
     {
         public int amount;
-
+        /*
         public enum ITEM_TYPE
         {
             MONEY,
@@ -98,6 +96,7 @@ namespace MagnumFoudation
             WEAPON
         }
         public ITEM_TYPE it;
+        */
         public o_item ItemContain;
         public int indexID = -1; //Used for despawning items, Set to -1 to check if it's not intialised
         public o_weapon WeaponContain;
@@ -106,6 +105,12 @@ namespace MagnumFoudation
         {
             base.Start();
         }
+
+        public virtual void CollectItem(o_character ob) {
+
+            DespawnObject();
+        }
+
 
         new void Update()
         {
@@ -117,19 +122,31 @@ namespace MagnumFoudation
 
                 if (p != null)
                 {
-                    if (p.GetComponent<o_character>() || !p.AI)
-                        switch (it)
-                        {
-                            case ITEM_TYPE.MONEY:
-                                s_globals.Money += 1;
-                                s_map mp = GameObject.Find("General").GetComponent<s_levelloader>().mapDat;
-                                mp.gemCount++;
-                                s_save_item it = mp.itemdat.Find(x => x.ID == indexID);
-                                it.iscollected = true;
-                                break;
+                    if (p.GetComponent<o_character>() || !p.AI) {
+                        CollectItem(p);
+                    }
+                    /*
+                switch (it)
+                {
+                    case ITEM_TYPE.MONEY:
+                        s_globals.Money += 1;
+                        s_map mp = GameObject.Find("General").GetComponent<s_levelloader>().mapDat;
+                        mp.gemCount++;
+                        s_save_item it = mp.itemdat.Find(x => x.ID == indexID);
+                        it.iscollected = true;
+                        DespawnObject();
+                        break;
 
+                    case ITEM_TYPE.HEALTH:
+                        if (p.health < p.maxHealth)
+                        {
+                            p.health += amount;
+                            DespawnObject();
                         }
-                    DespawnObject();
+                        break;
+
+                }
+            */
                 }
                 //DespawnObject();
             }
@@ -142,7 +159,7 @@ namespace MagnumFoudation
         public Vector2 uppercollision { get; set; }
         public GameObject graphic;
         public bool issolid = true;
-        public LayerMask layuer; Collider2D cha;
+        public LayerMask layuer;
         public string character;
         public string characterCannot = null;
 
@@ -162,6 +179,8 @@ namespace MagnumFoudation
         new private void Start()
         {
             base.Start();
+            if (transform.Find("sprite_obj"))
+                animHand = transform.Find("sprite_obj").GetComponent<s_animhandler>();
         }
 
         new void Update()
@@ -270,28 +289,47 @@ namespace MagnumFoudation
     public class s_object : MonoBehaviour
     {
         public string ID; //To return back to the object pooler
+        [HideInInspector]
         public GameObject shadow;
-        public float Z_offset;  //To show the character jumping
+        public float _Z_offset;  //To show the character jumping
         public int Z_floor;
+        [HideInInspector]
         public BoxCollider2D collision;
+        [HideInInspector]
         public s_nodegraph nodegraph;
         public float terminalSpeedOrigin;
         protected float terminalspd;
         public float gravity;
+        [HideInInspector]
         public Rigidbody2D rbody2d;
         protected s_object parentTrans;
         public SpriteRenderer rendererObj;
         protected s_animhandler animHand;
         protected Camera cam;
 
+        public bool useCondition = false;
+        public bool disspearOnConditionTrue = false;
+        public ev_details.LOGIC_TYPE logicType;
+        public string flagName;
+        public int conditionNum;
+
+        const float wldgravity = 3.98f;
+        public bool isHover = false;
+        public bool grounded = true;
+
         public void Start()
         {
             collision = GetComponent<BoxCollider2D>();
+            if (rendererObj != null)
+                animHand = rendererObj.GetComponent<s_animhandler>();
         }
 
         public void DespawnObject()
         {
-            s_levelloader.LevEd.DespawnObject(this);
+            if(s_levelloader.LevEd != null)
+                s_levelloader.LevEd.DespawnObject(this);
+            else
+                s_mapManager.LevEd.DespawnObject(this);
         }
 
         private void OnDrawGizmos()
@@ -314,6 +352,11 @@ namespace MagnumFoudation
             else
                 return no;
         }
+        public void SetAnimation(string anim, bool isloop, float speed)
+        {
+            if (animHand != null)
+                animHand.SetAnimation(anim, isloop,speed);
+        }
         public void SetAnimation(string anim, bool isloop)
         {
             if (animHand != null)
@@ -321,22 +364,28 @@ namespace MagnumFoudation
         }
         protected void Update()
         {
-            /*
-            if (Mathf.Abs(velocity.y) > terminalspd)
-                velocity.y = terminalspd * Mathf.Sign(velocity.y);
+            if (!isHover)
+                _Z_offset += gravity;
 
-            if (Mathf.Abs(velocity.x) > terminalspd)
-                velocity.x = terminalspd * Mathf.Sign(velocity.x);
-
-            velocity.x *= 0.89f;
-            velocity.y *= 0.89f;
-            if (Mathf.Abs(velocity.x) < 0.1f)
-                velocity.x = 0;
-
-            if (Mathf.Abs(velocity.y) < 0.1f)
-                velocity.y = 0;
-            */
+            if (_Z_offset > 0)
+            {
+                grounded = false;
+                if (!isHover)
+                    gravity -= Time.deltaTime * wldgravity;
+            }
+            else
+            {
+                if (!grounded)
+                    OnGround();
+                grounded = true;
+                _Z_offset = 0;
+            }
         }
+        public virtual void OnGround()
+        {
+
+        }
+
 
         public Collider2D GetCharacter(BoxCollider2D collisn) { return Physics2D.OverlapBox(transform.position, collisn.size, 0); }
         public Collider2D GetCharacter(BoxCollider2D collisn, string name)
@@ -394,7 +443,7 @@ namespace MagnumFoudation
             if (collisn == null)
                 return null;
 
-            Collider2D[] chara = Physics2D.OverlapBoxAll( collisn.transform.position, collisn.size, 0);
+            Collider2D[] chara = Physics2D.OverlapBoxAll( collisn.transform.position + (Vector3)collisn.offset, collisn.size, 0);
 
             if (chara == null)
                 return null;
@@ -418,7 +467,7 @@ namespace MagnumFoudation
             if (collisn == null)
                 return null;
 
-            return Physics2D.OverlapBox( collisn.transform.position, collisn.size * size_multip, 0, layer);
+            return Physics2D.OverlapBox( collisn.transform.position + (Vector3)collisn.offset, collisn.size * size_multip, 0, layer);
         }
         
         internal bool IfTouching(BoxCollider2D collisn)
@@ -461,7 +510,7 @@ namespace MagnumFoudation
             if (obj == null)
                 return false;
 
-            if (obj.GetType() == characterdata)
+            if (obj.GetType() == characterdata.GetType())
                 return true;
 
             return false;
@@ -502,7 +551,7 @@ namespace MagnumFoudation
     public class o_bullet : s_object
     {
         public o_character parent;
-        public int attack_pow;
+        public float attack_pow;
         public bool isbullet = true;
         public Vector2 direction { get; set; }
         protected float timer = 0;
@@ -528,7 +577,11 @@ namespace MagnumFoudation
                     {
                         if (c != parent)
                         {
-                            OnImpact(c);
+                            if (c.CHARACTER_STATE != o_character.CHARACTER_STATES.STATE_DASHING)
+                            {
+                                if(!c.isInvicible)
+                                    OnImpact(c);
+                            }
                         }
                     }
                 }
@@ -537,6 +590,7 @@ namespace MagnumFoudation
 
         new protected void Update()
         {
+            base.Update();
             if (isbullet)
             {
                 transform.Translate(direction * terminalSpeedOrigin * 60 * Time.deltaTime);
@@ -547,35 +601,6 @@ namespace MagnumFoudation
 
                 if (timer < 0) OnImpact(); else timer -= Time.deltaTime;
             }
-            else
-            {
-                /*
-                transform.position = transform.position;
-                
-                Collider2D c = null;
-                foreach (o_character tar in parent.targets) {
-                    s_object o = tar;
-                    c = IfTouchingGetCol(collision, typeof(o_character), o.name);
-                }
-                if (c != null)
-                {
-                    if (c != parent)
-                    {
-                        if (parent.GetTargets().Find(x => x == c.GetComponent<o_character>()) != null)
-                        {
-                            o_character host = c.GetComponent<o_character>();
-                            if (host != parent)
-                            {
-                                if (host.damage_timer <= 0)
-                                {
-                                    host.HurtFunction(attack_pow);
-                                }
-                            }
-                        }
-                    }
-                }
-                */
-        }
         }
 
         public virtual void OnImpact()
@@ -587,7 +612,7 @@ namespace MagnumFoudation
         {
             if (isbullet)
                 DespawnObject();
-            character.HurtFunction(attack_pow);
+            character.OnHit(this);
         }
     }
 
@@ -610,6 +635,25 @@ namespace MagnumFoudation
         public int COLTYPE;
     }
 
+    public class o_nodeobj : o_generic
+    {
+        public int nodeID;
+        public List<o_nodeobj> nieghbours = new List<o_nodeobj>();
+
+        private void OnDrawGizmos()
+        {
+            foreach (o_nodeobj nod in nieghbours)
+            {
+                if (nod != null)
+                    Gizmos.DrawLine(transform.position, nod.transform.position);
+            }
+
+#if UNITY_EDITOR_WIN
+        if (Application.isEditor)
+            Handles.Label(transform.position, "Node ID: " + nodeID);
+#endif
+        }
+    }
     public class o_character : s_object
     {
         #region variables
@@ -625,15 +669,26 @@ namespace MagnumFoudation
             public float timer;
         }
         public List<o_character> targets = new List<o_character>();
-        
+
+        public bool isInvicible = false;
+        public float dashDivider = 2.5f;    //Used for when the controlled character can stop dashing
+        public bool detailedAnim = false;
+
         public Vector2 direction;
+        [HideInInspector]
+        public Vector2 dashDirection;
+        public LayerMask collisionLayer;
 
         public bool IS_KINEMATIC = true;
         public delegate void ai_function();
-        public Stack<ai_behaviour> AI_QUEUED_STATES = new Stack<ai_behaviour>();
-        float ai_timer = 0;
+        //public Stack<ai_behaviour> AI_QUEUED_STATES = new Stack<ai_behaviour>();
+        public ai_function currentAIFunction;
+        protected float ai_timer = 0;
+
+        [HideInInspector]
         public float damage_timer = 0;
         protected float fallposy = 0;
+        protected float dashSpeed = 0;
 
         public enum CHARACTER_STATES
         {
@@ -649,25 +704,26 @@ namespace MagnumFoudation
             STATE_DEFEAT
         };
         public CHARACTER_STATES CHARACTER_STATE;
-        public GameObject bullet;
+        [HideInInspector]
         public GameObject sensro;
         public o_character target;
 
         public float health;
         public float maxHealth;
-        
+
+        [HideInInspector]
         public Collider2D hitbox;
 
-        public bool grounded = true;
+        [HideInInspector]
         public GameObject SpriteObj;
+        protected Vector2 spriteOffset = new Vector2(0,0);
         
-        const float wldgravity = 3.98f;
         protected float velSlip = 0.85f;
         public GameObject attackobject;
 
-        internal float crashTimer = 0;
-        internal float dashdelayStart = 0;
-        internal float dashdelay = 0;
+        protected float crashTimer = 0;
+        public float dashdelayStart = 0;
+        public float dashdelay = 0;
         protected float angle;
         protected Vector3 mouse;
         protected Vector3 spawnpoint;
@@ -677,8 +733,11 @@ namespace MagnumFoudation
         public bool AI;
         public bool control = true;
         public string faction;
+        bool afterDefeatPlayed = false;
 
         protected s_node CurrentNode;
+
+        public bool AI_timerUp { get { return ai_timer <= 0; } }
 
         public float walktimer { get; private set; }
         #endregion
@@ -694,7 +753,7 @@ namespace MagnumFoudation
             health = maxHealth;
             terminalspd = terminalSpeedOrigin;
             nodegraph = GameObject.Find("General").GetComponent<s_nodegraph>();
-            cam = GameObject.Find("Camera").GetComponent<Camera>();
+            cam = GameObject.Find("CameraGame").GetComponent<Camera>();
         }
 
         public T CharacterType<T>() where T : o_character
@@ -719,16 +778,17 @@ namespace MagnumFoudation
             spawnpoint = vec;
         }
 
-        public void HurtFunction(int damage)
+        public void HurtFunction(float damage)
         {
             health -= damage;
             damage_timer = 0.4f;
             //Perhaps spawn particles and things here
         }
 
-        protected void PopAIFunction()
+        protected void SetAIFunction(float timer, ai_function function)
         {
-            AI_QUEUED_STATES.Pop();
+            ai_timer = timer;
+            currentAIFunction = function;
         }
 
         public Vector2 MouseAng()
@@ -738,13 +798,18 @@ namespace MagnumFoudation
                 mouseRet = cam.ScreenToWorldPoint(Input.mousePosition) - transform.position;
             else
             {
-                cam = GameObject.Find("Camera").GetComponent<Camera>();
+                cam = GameObject.Find("CameraGame").GetComponent<Camera>();
                 mouseRet = cam.ScreenToWorldPoint(Input.mousePosition) - transform.position;
             }
             angle = ReturnAngle(new Vector3(mouse.x, mouse.y, 0));
             return mouseRet;
         }
 
+        /*
+        protected void PopAIFunction()
+        {
+            AI_QUEUED_STATES.Pop();
+        }
         protected void AddAIFunction(float timer, ai_function function)
         {
             if (ai_timer >= 0)
@@ -759,6 +824,7 @@ namespace MagnumFoudation
             AI_QUEUED_STATES.Pop();
             AI_QUEUED_STATES.Push(new ai_behaviour(timer, function));
         }
+        */
 
         public Vector3 LookAtTarget(o_character target)
         {
@@ -772,17 +838,58 @@ namespace MagnumFoudation
         public bool CheckTargetDistance(o_character target, float distance)
         {
             float calcdis = Vector2.Distance(target.transform.position, transform.position);
+            if (Physics2D.Linecast(target.transform.position, transform.position, collisionLayer))
+                return false;
             return calcdis <= distance;
         }
         public bool CheckTargetDistance(Vector2 target, float distance)
         {
             float calcdis = Vector2.Distance(target, transform.position);
+            if (Physics2D.Linecast(target, transform.position, collisionLayer))
+                return false;
             return calcdis <= distance;
         }
 
         public void SetTransformPar(s_object o)
         {
             parentTrans = o;
+        }
+        public bool ArrowKeyControlPref()
+        {
+            if (Input.GetKey(s_globals.GetKeyPref("right")))
+            {
+                direction.x = 1;
+            }
+            if (Input.GetKey(s_globals.GetKeyPref("left")))
+            {
+                direction.x = -1;
+            }
+            if (Input.GetKey(s_globals.GetKeyPref("up")))
+            {
+                direction.y = 1;
+            }
+            if (Input.GetKey(s_globals.GetKeyPref("down")))
+            {
+                direction.y = -1;
+            }
+            if (!Input.GetKey(s_globals.GetKeyPref("left")) && !Input.GetKey(s_globals.GetKeyPref("right"))
+                && (Input.GetKey(s_globals.GetKeyPref("up")) || Input.GetKey(s_globals.GetKeyPref("down"))))
+            {
+                direction.x = 0;
+            }
+            if (!Input.GetKey(s_globals.GetKeyPref("up")) && !Input.GetKey(s_globals.GetKeyPref("down"))
+                && (Input.GetKey(s_globals.GetKeyPref("left")) || Input.GetKey(s_globals.GetKeyPref("right"))))
+            {
+                direction.y = 0;
+            }
+            if (Input.GetKey(s_globals.GetKeyPref("up")) ||
+                Input.GetKey(s_globals.GetKeyPref("down")) ||
+                Input.GetKey(s_globals.GetKeyPref("left")) ||
+                Input.GetKey(s_globals.GetKeyPref("right")))
+            {
+                return true;
+            }
+            return false;
         }
 
         public bool ArrowKeyControl()
@@ -794,6 +901,37 @@ namespace MagnumFoudation
             }
             //direction = new Vector2(0, 0);
             return false;
+        }
+
+        public Vector2 ArrowKeyControlPerfGetVec()
+        {
+            Vector2 v = new Vector2();
+            if (Input.GetKeyDown(s_globals.GetKeyPref("right")))
+            {
+                v.x = 1;
+            }
+            if (Input.GetKeyDown(s_globals.GetKeyPref("left")))
+            {
+                v.x = -1;
+            }
+            if (!Input.GetKeyDown(s_globals.GetKeyPref("left")) && !Input.GetKeyDown(s_globals.GetKeyPref("right")))
+            {
+                v.x = 0;
+            }
+            if (Input.GetKeyDown(s_globals.GetKeyPref("up")))
+            {
+                v.y = 1;
+            }
+            if (Input.GetKeyDown(s_globals.GetKeyPref("down")))
+            {
+                v.y = -1;
+            }
+            if (!Input.GetKeyDown(s_globals.GetKeyPref("up")) && !Input.GetKeyDown(s_globals.GetKeyPref("down")))
+            {
+                v.y = 0;
+            }
+            //direction = new Vector2(0, 0);
+            return v;
         }
         public Vector2 ArrowKeyControlGetVec()
         {
@@ -811,8 +949,8 @@ namespace MagnumFoudation
                 return;
             dashdelayStart = delay;
             dashdelay = delay;
-            if (rbody2d != null)
-                Pushforce(direction, terminalspd);
+            dashSpeed = 1;
+            dashDirection = direction;
             CHARACTER_STATE = CHARACTER_STATES.STATE_DASHING;
         }
         public void Dash(float delay, float sped)
@@ -821,8 +959,8 @@ namespace MagnumFoudation
                 return;
             dashdelayStart = delay;
             dashdelay = delay;
-            if (rbody2d != null)
-                Pushforce(direction, sped);
+            dashSpeed = sped;
+            dashDirection = direction;
             CHARACTER_STATE = CHARACTER_STATES.STATE_DASHING;
         }
 
@@ -835,9 +973,13 @@ namespace MagnumFoudation
             }
             return false;
         }
+
+        public virtual void OnHit(o_bullet b)
+        {
+        }
         public bool JumpWithoutGround(float gravity, float ZPOSlimit)
         {
-            if (ZPOSlimit > Z_offset)
+            if (ZPOSlimit > _Z_offset)
             {
                 this.gravity = gravity;
                 return true;
@@ -859,23 +1001,87 @@ namespace MagnumFoudation
             }
             else
             {
-                int random = Random.Range(0, 2);
+                int random = UnityEngine.Random.Range(0, 2);
                 switch (random)
                 {
                     case 0:
                         Move();
                         CHARACTER_STATE = CHARACTER_STATES.STATE_MOVING;
-                        direction = new Vector2(Random.Range(-2, 2), Random.Range(-2, 2)).normalized;
+                        direction = new Vector2(UnityEngine.Random.Range(-2, 2), UnityEngine.Random.Range(-2, 2)).normalized;
                         break;
 
                     case 1:
                         CHARACTER_STATE = CHARACTER_STATES.STATE_IDLE;
                         break;
                 }
-                walktimer = Random.Range(0.6f, 3);
+                walktimer = UnityEngine.Random.Range(0.6f, 3);
             }
         }
-        
+
+        public void PlaySound(string sound) {
+            s_soundmanager.sound.PlaySound(sound);
+        }
+
+        public virtual void AnimMove()
+        {
+            if (detailedAnim)
+            {
+                int verticalDir = Mathf.RoundToInt(direction.y);
+                int horizontalDir = Mathf.RoundToInt(direction.x);
+
+                if (CHARACTER_STATE == CHARACTER_STATES.STATE_MOVING)
+                {
+                    if (verticalDir == -1 && horizontalDir == 0)
+                        SetAnimation("walk_d", true);
+                    else if (verticalDir == 1 && horizontalDir == 0)
+                        SetAnimation("walk_u", true);
+                    else if (horizontalDir == -1 && verticalDir == 1 ||
+                        horizontalDir == -1 && verticalDir == -1 || horizontalDir == -1)
+                    {
+                        rendererObj.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 0));
+                        SetAnimation("walk_s", true);
+                    }
+                    else if (horizontalDir == 1 && verticalDir == 1 ||
+                        horizontalDir == 1 && verticalDir == -1 || horizontalDir == 1)
+                    {
+                        rendererObj.transform.rotation = Quaternion.Euler(new Vector3(0, -180, 0));
+                        SetAnimation("walk_s", true);
+                    }
+                }
+                if (CHARACTER_STATE == CHARACTER_STATES.STATE_IDLE)
+                {
+                    if (verticalDir == -1 && horizontalDir == 0)
+                        SetAnimation("idle_d", true);
+                    else if (verticalDir == 1 && horizontalDir == 0)
+                        SetAnimation("idle_u", true);
+                    else if (horizontalDir == -1 && verticalDir == 1 ||
+                        horizontalDir == -1 && verticalDir == -1 || horizontalDir == -1)
+                    {
+                        rendererObj.transform.rotation = Quaternion.Euler(new Vector3(0, 0, 0));
+                        SetAnimation("idle_s", true);
+                    }
+                    else if (horizontalDir == 1 && verticalDir == 1 ||
+                        horizontalDir == 1 && verticalDir == -1 || horizontalDir == 1)
+                    {
+                        rendererObj.transform.rotation = Quaternion.Euler(new Vector3(0, -180, 0));
+                        SetAnimation("idle_s", true);
+                    }
+
+                }
+            }
+            else
+            {
+
+                if (CHARACTER_STATE == CHARACTER_STATES.STATE_MOVING)
+                {
+                    SetAnimation("walk_d", true);
+                }
+                if (CHARACTER_STATE == CHARACTER_STATES.STATE_IDLE)
+                {
+                    SetAnimation("idle_d", true);
+                }
+            }
+        }
         public void CheckForVelLimits()
         {
             if (Mathf.Abs(rbody2d.velocity.y) > terminalspd)
@@ -890,7 +1096,25 @@ namespace MagnumFoudation
             }
         }
 
-        protected void SetAttackObject()
+        protected void SetAttackObject<T>(string attkObName, float pow) where T : o_bullet
+        {
+            if (transform.Find(attkObName) != null)
+            {
+                attackobject = transform.Find(attkObName).gameObject;
+                attackobject.GetComponent<o_bullet>().attack_pow = pow;
+                attackobject.GetComponent<o_bullet>().parent = this;
+            }
+        }
+        protected void SetAttackObject<T>(string attkObName) where T : o_bullet
+        {
+            if (transform.Find(attkObName) != null)
+            {
+                attackobject = transform.Find(attkObName).gameObject;
+                attackobject.GetComponent<o_bullet>().attack_pow = 1;
+                attackobject.GetComponent<o_bullet>().parent = this;
+            }
+        } 
+        protected void SetAttackObject<T>() where T : o_bullet
         {
             if (transform.Find("attack_object") != null)
             {
@@ -898,8 +1122,8 @@ namespace MagnumFoudation
                 attackobject.GetComponent<o_bullet>().attack_pow = 1;
                 attackobject.GetComponent<o_bullet>().parent = this;
             }
-        }
-        protected void SetAttackObject(int pow)
+        } 
+        protected void SetAttackObject<T>(int pow) where T : o_bullet
         {
             if (transform.Find("attack_object") != null)
             {
@@ -907,7 +1131,7 @@ namespace MagnumFoudation
                 attackobject.GetComponent<o_bullet>().attack_pow = pow;
                 attackobject.GetComponent<o_bullet>().parent = this;
             }
-        }
+        } 
 
         protected void AddForce(Vector2 mouse, float power)
         {
@@ -924,6 +1148,8 @@ namespace MagnumFoudation
             float smallest = float.MaxValue;
             foreach (T c in targets)
             {
+                if (c == null)
+                    continue;
                 if (c == this)
                     continue;
                 if (!c.gameObject.activeSelf)
@@ -931,8 +1157,10 @@ namespace MagnumFoudation
                 float dist = TargetDistance(c);
                 if (dist > range)
                     continue;
-                if (dist < smallest)
-                {
+                //Get this target for now if nothing else is better
+                if (targ == null)
+                    targ = c;
+                if (dist <= smallest) {
                     targ = c;
                     smallest = dist;
                 }
@@ -976,18 +1204,30 @@ namespace MagnumFoudation
                     targets.Add(c);
                     continue;
                 }
-                if (c.faction == faction)
+                if (c.faction == faction
+                    || c.faction == "N/A"
+                    || c.faction == "N/a"
+                    || c.faction == "n/A"
+                    || c.faction == "n/a")
                     continue;
                 targets.Add(c);
             }
         }
 
+        protected void EnableAttack(BoxCollider2D col)
+        {
+            if (col != null)
+            {
+                col.gameObject.SetActive(true);
+                attackobject.transform.localPosition = direction * 20;
+            }
+        }
         protected void EnableAttack()
         {
             if (attackobject != null)
             {
                 attackobject.SetActive(true);
-                attackobject.transform.localRotation = Quaternion.Euler(0, 0, angle);
+                attackobject.transform.localPosition = direction * 20;
             }
         }
         protected void EnableAttack(Vector2 dir)
@@ -995,7 +1235,7 @@ namespace MagnumFoudation
             if (attackobject != null)
             {
                 attackobject.SetActive(true);
-                attackobject.transform.localRotation = Quaternion.Euler(0, 0, angle);
+                attackobject.transform.localPosition = dir * 20;
                 attackobject.GetComponent<o_bullet>().direction = dir;
             }
         }
@@ -1004,7 +1244,17 @@ namespace MagnumFoudation
             if (attackobject != null)
                 attackobject.SetActive(false);
         }
+        protected void DisableAttack(BoxCollider2D col)
+        {
+            if (col != null)
+                col.gameObject.SetActive(false);
+        }
 
+        protected float ReturnAngle2(Vector3 position)
+        {
+            Vector2 unitvec = position.normalized;
+            return Mathf.Atan2(unitvec.x, unitvec.y) * Mathf.Rad2Deg;
+        }
         protected float ReturnAngle(Vector3 position)
         {
             return 360 - Mathf.Atan2(position.x, position.y) * Mathf.Rad2Deg;
@@ -1036,7 +1286,25 @@ namespace MagnumFoudation
         /// This is the state where the AI would chase their target, it would often lead into the attack state or the retreat state
         /// </summary>
         public virtual void ActiveState() { }
-        
+
+        Vector2 colPos;
+        public bool CheckIfCornered(Vector3 dir)
+        {
+            Vector2 siz = collision.size * 0.9f;
+
+            Vector2 offset =
+                new Vector2(
+                    collision.transform.position.x + collision.offset.x,
+                    collision.transform.position.y + collision.offset.y);
+
+            colPos = (Vector3)offset + dir * 2;
+            Collider2D col = Physics2D.OverlapBox(colPos, siz, 0, collisionLayer);
+
+            if (col != null)
+                return true;
+            return false;
+        }
+
         void Move()
         {
             switch (CHARACTER_STATE)
@@ -1044,12 +1312,11 @@ namespace MagnumFoudation
                 case CHARACTER_STATES.STATE_NOTHING:
                     if (crashTimer > 0)
                         crashTimer -= Time.deltaTime;
-                    if (crashTimer != -1)
+                    if (crashTimer <= 0)
                     {
-                        if (crashTimer <= 0)
-                        {
-                            CHARACTER_STATE = CHARACTER_STATES.STATE_IDLE;
-                        }
+                        dashdelay = 0;
+                        CHARACTER_STATE = CHARACTER_STATES.STATE_IDLE;
+                        AfterDash();
                     }
                     break;
 
@@ -1068,68 +1335,49 @@ namespace MagnumFoudation
                     transform.position -= new Vector3(0, 5, 0);
                     if (transform.position.y <= fallposy)
                     {
-                        CHARACTER_STATE = CHARACTER_STATES.STATE_MOVING;
+                        dashdelay = 0;
+                        CHARACTER_STATE = CHARACTER_STATES.STATE_IDLE;
                     }
                     break;
 
                 case CHARACTER_STATES.STATE_HURT:
                     if (damage_timer <= 0)
-                        CHARACTER_STATE = CHARACTER_STATES.STATE_MOVING;
+                    {
+                        rendererObj.color = Color.white;
+                        dashdelay = 0;
+                        CHARACTER_STATE = CHARACTER_STATES.STATE_IDLE;
+                    }
+                    else {
+                        rendererObj.color = Color.red;
+                    }
                     break;
 
                 case CHARACTER_STATES.STATE_DASHING:
-                    if (dashdelay <= 0)
-                    {
+                    if (dashdelay <= 0) {
                         AfterDash();
-                    }
-                    else
-                    {
-                        Collider2D c = Physics2D.OverlapBox((Vector2)transform.position + (direction * 10), collision.size, 0);
-                        if (c != null)
-                        {
-                            if (c.name == "Collision")
-                            {
-                                CrashOnDash();
-                                dashdelay = 0;
-                            }
-                        }
-                        if (dashdelay < dashdelayStart / 2)
+                    } else {
+                        rbody2d.velocity = dashDirection * terminalspd * dashSpeed;
+                        if (dashdelay < dashdelayStart / dashDivider)
                             if (!AI)
-                                if (!Input.GetKey(KeyCode.LeftShift))
+                                if (!Input.GetKey(s_globals.GetKeyPref("dash")))
                                     dashdelay = 0;
-                        //rbody.velocity += direction * 6;
+
                         dashdelay -= Time.deltaTime;
+                        //Check for a wall in front if NOCLIP mode isn't on
+                        if (!collision.isTrigger && CheckIfCornered(dashDirection * 1.5f)) {
+                            CrashAfterDash();
+                        }
                     }
-                    //positioninworld += (Vector3)new Vector2(velocity.x, velocity.y) * 15 * Time.deltaTime;
                     break;
             }
-           // transform.Translate((Vector3)rbody2d.velocity * Time.deltaTime);
             
-            if (SpriteObj != null)
-            {
-                SpriteObj.transform.position = new Vector3(transform.position.x, transform.position.y + Z_offset);
+            if (SpriteObj != null) {
+                SpriteObj.transform.position = new Vector3(transform.position.x + spriteOffset.x, transform.position.y + spriteOffset.y + _Z_offset);
             }
-            /*
-            if (rbody2d == null)
-            {
-                positioninworld += (Vector3)new Vector2(velocity.x, velocity.y) * Time.deltaTime;
-                
-
-                Vector2 composite_pos = positioninworld;
-
-                if (parentTrans != null)
-                    composite_pos = parentTrans.positioninworld;
-                positioninworld = composite_pos;
-                transform.position = new Vector2(composite_pos.x, composite_pos.y + Z_offset);
-            }
-            */
-            if (IS_KINEMATIC)
-            {
+            if (IS_KINEMATIC) {
                 collision.isTrigger = false;
                 COLLISIONDET();
-            }
-            else
-            {
+            } else {
                 collision.isTrigger = true;
             }
         }
@@ -1143,10 +1391,14 @@ namespace MagnumFoudation
         {
         }
 
+        public virtual void CrashAfterDash()
+        {
+            crashTimer = 0.38f;
+            rbody2d.velocity = Vector2.zero;
+            CHARACTER_STATE = CHARACTER_STATES.STATE_NOTHING;
+        }
         public void CrashOnDash()
         {
-            crashTimer = 1.4f;
-            CHARACTER_STATE = CHARACTER_STATES.STATE_NOTHING;
         }
 
         public new void Update()
@@ -1154,10 +1406,13 @@ namespace MagnumFoudation
             base.Update();
             if (control)
             {
-                if (AI)
-                    ArtificialIntelleginceControl();
-                else
-                    PlayerControl();
+                if (health > 0)
+                {
+                    if (AI)
+                        ArtificialIntelleginceControl();
+                    else
+                        PlayerControl();
+                }
             }
         }
 
@@ -1168,89 +1423,34 @@ namespace MagnumFoudation
                 damage_timer -= Time.deltaTime;
                 rendererObj.color = Color.red;
             }
-            else
-            {
-                rendererObj.color = Color.white;
-            }
 
-            if (AI_QUEUED_STATES.Count > 0)
-            {
-                if (AI_QUEUED_STATES.Peek().timer >= 0.1f)
-                {
-                    if (ai_timer > 0)
-                        ai_timer = ai_timer - Time.deltaTime;
-                    else
-                        AI_QUEUED_STATES.Pop();
-                }
-                AI_QUEUED_STATES.Peek().func();
-            }
+            if (ai_timer > 0)
+                ai_timer = ai_timer - Time.deltaTime;
 
             if (health <= 0)
             {
                 if (CHARACTER_STATE != CHARACTER_STATES.STATE_DEFEAT)
                 {
-                    AfterDefeat();
+                    if (!afterDefeatPlayed)
+                    {
+                        afterDefeatPlayed = true;
+                        AfterDefeat();
+                    }
                     CHARACTER_STATE = CHARACTER_STATES.STATE_DEFEAT;
                 }
+            }
+            else {
+                afterDefeatPlayed = false;
             }
             if (CHARACTER_STATE == CHARACTER_STATES.STATE_IDLE)
             {
                 rbody2d.velocity *= velSlip;
             }
             Move();
-            Z_offset += gravity;
-            if (Z_offset > 0)
-            {
-                grounded = false;
-                gravity -= Time.deltaTime * wldgravity;
-            }
-            else
-            {
-                if (!grounded)
-                    OnGround();
-                grounded = true;
-                Z_offset = 0;
-            }
-        }
-
-        //surfaces = Physics2D.OverlapBoxAll(transform.position, collision.size, 0);
-        /*
-        public void MoveMotor(Vector2 dir)
-        {
-            if (CHARACTER_STATE != CHARACTER_STATES.STATE_DASHING)
-            {
-                if (Mathf.Abs(velocity.x) > terminalspd)
-                {
-                    velocity.x = terminalspd * direction.x;
-                }
-                if (Mathf.Abs(velocity.y) > terminalspd)
-                {
-                    velocity.y = terminalspd * direction.y;
-                }
-            }
-            velocity += dir;
-        }
-        public void MoveMotor()
-        {
-            if (CHARACTER_STATE != CHARACTER_STATES.STATE_DASHING)
-            {
-                if (Mathf.Abs(velocity.x) > terminalspd)
-                {
-                    velocity.x = terminalspd * direction.x;
-                }
-                if (Mathf.Abs(velocity.y) > terminalspd)
-                {
-                    velocity.y = terminalspd * direction.y;
-                }
-            }
-            velocity += direction;
-        }
-        */
-
-        public virtual void OnGround()
-        {
 
         }
+
+
         
         public virtual void PlayerControl()
         {
@@ -1274,6 +1474,7 @@ namespace MagnumFoudation
 
         void COLLISIONDET()
         {
+
             if (nodegraph != null)
             {
                 if (IS_KINEMATIC)
@@ -1288,29 +1489,11 @@ namespace MagnumFoudation
 
                 }
             }
-
-            /*
-            if (xvel != 0 || yvel != 0)
-            {
-                velocity += new Vector2(xvel, 0);
-                velocity += new Vector2(0, yvel);
-            }
-            */
-            /*
-            o_bullet b = GetBullet(collision);
-            if (b != null)
-            {
-                if (damage_timer <= 0)
-                {
-                    b.OnImpact(this);
-                }
-            }
-            */
         }
 
         public void Hurt(o_bullet b)
         {
-            CHARACTER_STATE = CHARACTER_STATES.STATE_HURT;
+            //CHARACTER_STATE = CHARACTER_STATES.STATE_HURT;
             HurtFunction(b.attack_pow);
             Pushforce(b.direction, 135f);
         }
@@ -1354,10 +1537,14 @@ namespace MagnumFoudation
 
     public class s_camera : MonoBehaviour
     {
-        public static o_character player;
-        Vector2 offset;
+        public o_character player;
+        public static s_camera cam;
+        public Vector2 offset;
         float offset_multiplier;
         public float orthGraphicSize = 0;
+
+        public Vector2 mapSize;
+        public Vector2 tileSize;
 
         public Vector2 targetPos;
         Vector2 startPos;
@@ -1366,7 +1553,20 @@ namespace MagnumFoudation
         
         public bool lerping = false;
         public bool focus = true;
+        public bool camWithMouseOffset = false;
+        public bool debug = false;
         public static Vector2 position;
+
+        private float camerashakeDel;
+        private float cameraoffset_X;
+        private float cameraoffset_Y;
+
+        void Awake()
+        {
+            if (cam == null)
+                cam = this;
+            DontDestroyOnLoad(this);
+        }
 
         void Start()
         {
@@ -1374,7 +1574,7 @@ namespace MagnumFoudation
                 orthGraphicSize = GetComponent<Camera>().orthographicSize * 2;
         }
 
-        public static void SetPlayer(o_character cha)
+        public void SetPlayer(o_character cha)
         {
             player = cha;
         }
@@ -1385,57 +1585,90 @@ namespace MagnumFoudation
         }
 
         void FixedUpdate()
-        {
-            position = transform.position;
-            if (lerping)
+        { 
+            if (s_globals.globalSingle != null)
             {
-                transform.position = Vector3.Lerp(transform.position, targetPos, speedProg) + new Vector3(0, 0, -15);
-                speedProg += speedProgInc * Time.deltaTime;
-            }
-            else
-                if (focus)
-            {
-                if (player != null)
+                if (s_globals.globalSingle.isMainGame)
                 {
-                    Vector3 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
-                    offset = (mouse - player.transform.position).normalized;
-
-                    if (Vector2.Distance(mouse, player.transform.position) > 9)
+                    position = transform.position;
+                    if (lerping)
                     {
-                        offset_multiplier = Vector3.Distance(player.transform.position, mouse) * 0.35f;
+                        transform.position = Vector3.Lerp(transform.position, targetPos, speedProg) + new Vector3(0, 0, -15);
+                        speedProg += speedProgInc * Time.deltaTime;
                     }
-
-                    /*
-                    else
-                    {   
-                        if (offset_multiplier > 0f)
+                    else if (focus)
+                    {
+                        if (player != null)
                         {
-                            offset_multiplier *= 0.95f;
+                            Vector3 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+                            offset = (mouse - player.transform.position).normalized;
+
+                            if (Vector2.Distance(mouse, player.transform.position) > 9)
+                            {
+                                offset_multiplier = Vector3.Distance(player.transform.position, mouse) * 0.95f;
+                            }
+
+                            offset_multiplier = Mathf.Clamp(offset_multiplier, 0, 50f);
+                            offset *= offset_multiplier;
+                            Vector3 vec = Vector3.Lerp(player.transform.position, transform.position, 0.6f);
+
+                            vec.y = Mathf.RoundToInt(vec.y);
+                            vec.x = Mathf.RoundToInt(vec.x);
+
+                            if (vec.x < orthGraphicSize)
+                                vec.x = orthGraphicSize;
+
+                            if (camWithMouseOffset)
+                                vec = new Vector3(vec.x, vec.y, -10) + (Vector3)offset;
+                            else
+                                vec = new Vector3(vec.x, vec.y, -10);
+
+                            if (s_levelloader.LevEd != null)
+                            {
+                                if (vec.x > s_levelloader.LevEd.mapsizeToKeep.x * s_levelloader.LevEd.tilesize - orthGraphicSize)
+                                    vec.x = s_levelloader.LevEd.mapsizeToKeep.x * s_levelloader.LevEd.tilesize - orthGraphicSize;
+
+                                if (vec.y < orthGraphicSize / 2)
+                                    vec.y = orthGraphicSize / 2;
+                                if (vec.y > s_levelloader.LevEd.mapsizeToKeep.y * s_levelloader.LevEd.tilesize + orthGraphicSize / 2)
+                                    vec.y = s_levelloader.LevEd.mapsizeToKeep.y * s_levelloader.LevEd.tilesize + orthGraphicSize / 2;
+                            }
+                            else
+                            {
+                                if (vec.x > mapSize.x * tileSize.x - orthGraphicSize)
+                                    vec.x = mapSize.x * tileSize.x - orthGraphicSize;
+
+                                if (vec.y < orthGraphicSize / 2)
+                                    vec.y = orthGraphicSize / 2;
+                                if (vec.y > mapSize.y * tileSize.y + orthGraphicSize / 2)
+                                    vec.y = mapSize.y * tileSize.y + orthGraphicSize / 2;
+                            }
+                            transform.position = new Vector3(vec.x, vec.y, -10);
                         }
                     }
-                    */
 
-                    offset_multiplier = Mathf.Clamp(offset_multiplier, 0, 50f);
-                    offset *= offset_multiplier;
-                    Vector3 vec = Vector3.Lerp(player.transform.position, transform.position, 0.6f);
-                   
-                    vec.y = Mathf.RoundToInt(vec.y);
-                    vec.x = Mathf.RoundToInt(vec.x);
+                    if (camerashakeDel > 0)
+                    {
+                        float cam_off_x = UnityEngine.Random.Range(-cameraoffset_X, cameraoffset_X);
+                        float cam_off_y = UnityEngine.Random.Range(-cameraoffset_Y, cameraoffset_Y);
 
-                    if (vec.x < orthGraphicSize)
-                        vec.x = orthGraphicSize;
-                    if (vec.x > s_levelloader.LevEd.mapsizeToKeep.x * s_levelloader.LevEd.tilesize - orthGraphicSize)
-                        vec.x = s_levelloader.LevEd.mapsizeToKeep.x * s_levelloader.LevEd.tilesize - orthGraphicSize;
+                        transform.position = new Vector3(transform.position.x + cam_off_x, transform.position.y + cam_off_y, -23);
 
-                    if (vec.y < orthGraphicSize)
-                        vec.y = orthGraphicSize;
-                    if (vec.y > s_levelloader.LevEd.mapsizeToKeep.y * s_levelloader.LevEd.tilesize - orthGraphicSize)
-                        vec.y = s_levelloader.LevEd.mapsizeToKeep.y * s_levelloader.LevEd.tilesize - orthGraphicSize;
-                    
-                    transform.position = new Vector3(vec.x, vec.y, -10);
+                        camerashakeDel = camerashakeDel - Time.deltaTime;
+
+                    }
                 }
             }
+        }
+
+        public void CameraShake(float x, float y, float delay)
+        {
+            cameraoffset_X = x;
+            cameraoffset_Y = y;
+
+            camerashakeDel = delay;
         }
 
         public bool CameraLerp()
@@ -1472,4 +1705,8 @@ namespace MagnumFoudation
         bullt.parent = this;
     }
     */
+}
+
+public interface IPoolerObj {
+    void SpawnStart();
 }

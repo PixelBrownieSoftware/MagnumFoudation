@@ -28,6 +28,9 @@ namespace MagnumFoudation
         public int animindex = 0;
         s_anim current;
         s_anim lastCurrent;
+
+        public float _speed = 1; //Default is 1
+
         public Sprite current_sprite { get; set; }
         SpriteRenderer sprRend;
         public bool isLooping = false;
@@ -36,9 +39,21 @@ namespace MagnumFoudation
         {
             sprRend = GetComponent<SpriteRenderer>();
         }
+        public void SetAnimation(string anim, bool isloop, float speed)
+        {
+            _speed = speed;
+            isLooping = isloop;
+            current = animations.Find(x => x.name == anim);
+            if (lastCurrent != current)
+            {
+                animindex = 0;
+                lastCurrent = current;
+            }
+        }
 
         public void SetAnimation(string anim, bool isloop)
         {
+            _speed = 1;
             isLooping = isloop;
             current = animations.Find(x=> x.name == anim);
             if (lastCurrent != current)
@@ -57,7 +72,7 @@ namespace MagnumFoudation
                     current_sprite = current.keyframes[animindex].spr;
                     if (sprRend != null)
                         sprRend.sprite = current_sprite;
-                    if (current.keyframes[animindex].duration < timer)
+                    if (current.keyframes[animindex].duration * _speed < timer)
                     {
                         if (isLooping)
                         {

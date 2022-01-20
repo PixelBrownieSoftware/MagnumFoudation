@@ -9,6 +9,5 @@ namespace MagnumFoudation
     public class s_utility : s_object
     {
         public int eventState { get; set; }
-        o_trigger triggerObject;
     }
 }

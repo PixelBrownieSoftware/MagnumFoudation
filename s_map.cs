@@ -8,6 +8,40 @@ namespace MagnumFoudation
 {
     using System.Collections.Generic;
     using UnityEngine;
+
+    [System.Serializable]
+    public struct StringList
+    {
+        public StringList(string name, List<string> listOfStrings)
+        {
+            this.name = name;
+            this.listOfStrings = listOfStrings;
+        }
+        public string name;
+        public List<string> listOfStrings;
+    }
+    [System.Serializable]
+    public struct IntList
+    {
+        public IntList(string name, List<int> listOfInts) 
+        {
+            this.name = name;
+            this.listOfInts = listOfInts;
+        }
+        public string name;
+        public List<int> listOfInts;
+    }
+    [System.Serializable]
+    public struct FloatList
+    {
+        public FloatList(string name, List<float> listOfFloat)
+        {
+            this.name = name;
+            this.listOfFloat = listOfFloat;
+        }
+        public string name;
+        public List<float> listOfFloat;
+    }
     public enum LOGIC_TYPE
     {
         VAR_GREATER,
@@ -26,11 +60,13 @@ namespace MagnumFoudation
         RUN_CHARACTER_SCRIPT,
         ANIMATION = 4,
         SOUND,
-        SET_FLAG = 7,
+        CUSTOM_FUNCTION,
+        SET_FLAG,
         CHECK_FLAG,
         CAMERA_MOVEMENT,
-        BREAK_EVENT = 10,
-        SET_UTILITY_FLAG = 12,
+        BREAK_EVENT,
+        JUMP_TO_LABEL,
+        SET_UTILITY_FLAG,
         FADE,
         CREATE_OBJECT,
         DISPLAY_CHARACTER_HEALTH,
@@ -48,7 +84,8 @@ namespace MagnumFoudation
         SET_OBJ_COLLISION,
         ADD_CHOICE_OPTION,
         CLEAR_CHOICES,
-        PRESENT_CHOICES
+        PRESENT_CHOICES,
+        SAVE_DATA
     }
     [System.Serializable]
     public class ev_details
@@ -65,44 +102,13 @@ namespace MagnumFoudation
                 a = colour.a;
             }
         }
-        /*
-        public enum EVENT_TYPES
-        {
-            MOVEMNET,
-            DIALOGUE,
-            SET_HEALTH = 2,
-            RUN_CHARACTER_SCRIPT,
-            ANIMATION = 4,
-            SOUND,
-            SET_FLAG = 7,
-            CHECK_FLAG,
-            CAMERA_MOVEMENT,
-            BREAK_EVENT,
-            END_EVENT,
-            UTILITY_FOCUS,
-            FADE,
-            OBJECT,
-            DISPLAY_CHARACTER_HEALTH,
-            UTILITY_INITIALIZE,
-            UTILITY_CHECK,
-            WAIT,
-            CHOICE,
-            ALLOW_DEPOSSES,
-            PUT_SHUTTERS,
-            DISPLAY_IMAGE,
-            SHOW_TEXT,
-            CHANGE_MAP,
-            DEPOSSES,
-            SET_UTILITY_FLAG
-        }
-        */
         public enum LOGIC_TYPE
         {
             VAR_GREATER,
             VAR_EQUAL,
             VAR_LESS,
+            VAR_NOT_EQUAL,
             ITEM_OWNED,
-            NUM_OF_GEMS,
             CHECK_UTILITY_RETURN_NUM
         }
 
@@ -164,6 +170,7 @@ namespace MagnumFoudation
 
         public int logic;
         public int eventType;
+        public string funcName;
 
         public bool waitTillDone;
         public int jump;
@@ -174,12 +181,16 @@ namespace MagnumFoudation
         public int int2;
         public bool boolean;
         public bool boolean1;
+        public bool boolean2;
         public string string0;
         public string string1;
+        public float posX;
+        public float posY;  //So the editor can read it
         public float float0;
         public float float1;
         public string[] stringList;
         public int[] intList;
+        public ScriptableObject scrObj;
     }
     
     [System.Serializable]
@@ -267,6 +278,7 @@ namespace MagnumFoudation
         public List<s_chara> objectdata = new List<s_chara>();
         public List<s_tileobj> tilesdata = new List<s_tileobj>();
         public List<s_save_item> itemdat = new List<s_save_item>();
+        public List<s_pathNode> nodes = new List<s_pathNode>();
         public s_save_vector spawnPoint;
         public s_save_vector mapsize;
         public string FlagNameCheck;
@@ -475,6 +487,7 @@ namespace MagnumFoudation
             public bool IsPermanentlyDisabled; // Set to false by default
             public bool unlocked = true;
             public int labelToJumpTo;
+            public string stringLabelToJumpTo;
             public bool requiresDependency = false;
 
             public int pos_x, pos_y;
@@ -487,6 +500,8 @@ namespace MagnumFoudation
             public int[] intlist;
             public bound[] boundaryobj;
             public s_save_vector trigSize;
+            public List<StringList> CustomStrings;
+            public List<IntList> CustomInt;
 
             public List<s_customType> CustomTypes;
 
@@ -504,6 +519,9 @@ namespace MagnumFoudation
                 this.type = type;
                 this.type2 = type2;
                 this.type3 = type3;
+                intList = null;
+                stringList = null;
+                vecList = null;
             }
             public s_customType(string name, int type, int type2)
             {
@@ -511,6 +529,9 @@ namespace MagnumFoudation
                 this.type = type;
                 this.type2 = type2;
                 type3 = null;
+                intList = null;
+                stringList = null;
+                vecList = null;
             }
             public s_customType(string name, int type)
             {
@@ -518,6 +539,9 @@ namespace MagnumFoudation
                 this.type = type;
                 type2 = 0;
                 type3 = null;
+                intList = null;
+                stringList = null;
+                vecList = null;
             }
             public s_customType(string name, string type3)
             {
@@ -525,9 +549,25 @@ namespace MagnumFoudation
                 type = 0;
                 type2 = 0;
                 this.type3 = type3;
+                intList = null;
+                stringList = null;
+                vecList = null;
+            }
+            public s_customType(string name, List<Tuple<string, List<int>>> intList)
+            {
+                this.name = name;
+                this.type = 0;
+                this.type2 = 0;
+                type3 = null;
+                this.intList = intList;
+                stringList = null;
+                vecList = null;
             }
 
             public string name;
+            public List<Tuple<string, List<int>>> intList;
+            public List<Tuple<string,List<string>>> stringList;
+            public List<Tuple<string, List<Vector2>>> vecList;
             public int type;
             public int type2;
             public string type3;
@@ -704,6 +744,8 @@ namespace MagnumFoudation
             public string[] mapnames;
 
             public List<s_customType> CustomTypes;
+            public List<StringList> CustomStrings;
+            public List<IntList> CustomInt;
             public s_save_vector tilemapPos;
             public s_save_vector size;
             public s_save_vector teleportpos;
